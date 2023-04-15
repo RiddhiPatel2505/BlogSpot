@@ -3,12 +3,16 @@
 *  I declare that this assignment is my own work in accordance with Seneca  Academic Policy.  No part *  of this assignment has been copied manually or electronically from any other source 
 *  (including 3rd party web sites) or distributed to other students.
 * 
-*  Name: Riddhi Bharatkumar Patel Student ID: 151212214 Date: 22-03-2023
+*  Name: Riddhi Bharatkumar Patel Student ID: 151212214 Date: 05-04-2023
 *
-*  Online (Cyclic) Link: https://shy-pear-iguana-sari.cyclic.app
+*  Online (Cyclic) Link: https://clear-crow-suit.cyclic.app/blog
 * 
 * Hello Professor, I have two extra days to submit this assignment. Thanks!
 ********************************************************************************/
+var authData = require("./auth-service.js")
+var clientSession = require("client-sessions")
+const session = require("express-session")
+const cookieParser = require("cookie-parser");
 
 var express = require("express");
 const exhbs = require("express-handlebars");
@@ -20,12 +24,34 @@ const cloudinary = require("cloudinary").v2;
 const streamifier = require("streamifier");
 const stripJs = require("strip-js");
 const { BLOB } = require("sequelize");
+
 cloudinary.config({
   cloud_name: "dykqe6zbf",
   api_key: "896516429251514",
   api_secret: "HJR-b_Hm09Cl5ulY8c4lBHJFYMA",
   secure: true,
 });
+
+// Session configuration
+app.use(cookieParser());
+ 
+app.use(session({
+  secret: 'This is smit patel',
+  resave: false,
+  saveUninitialized: true,
+  cookie: { secure: true }
+}));
+
+// Middleware to check whether is suthenticated or not
+function isAuthenticated(req, res, next) {
+  if (req.session.user) {
+    // user is authenticated, continue to next middleware or route handler
+    return next();
+  }
+
+  // user is not authenticated, redirect to login page
+  res.redirect('/login');
+}
 
 const upload = multer();
 app.engine(
@@ -75,10 +101,10 @@ app.get("/", function (req, res) {
   res.redirect("/blog");
 });
 
-app.get("/about", function (req, res) {
+app.get("/about", isAuthenticated, function (req, res) {
   res.render("about");
 });
-app.get("/blog", async (req, res) => {
+app.get("/blog",isAuthenticated,  async (req, res) => {
   let viewData = {};
 
   try {
@@ -144,7 +170,7 @@ app.get("/blog/:id", async (req, res) => {
     viewData.categoriesMessage = "no results";
   }
 
-  res.render("blog", { data: viewData });
+  res.render("blog", isAuthenticated, { data: viewData });
 });
 // To get app posts
 app.get("/posts", function (req, res) {
@@ -182,7 +208,7 @@ app.get("/posts", function (req, res) {
   }
 });
 // To get post by ID
-app.get("/post/:id", (req, res) => {
+app.get("/post/:id",isAuthenticated, (req, res) => {
   blog
     .getPostById(req.params.id)
     .then((data) => {
@@ -193,7 +219,7 @@ app.get("/post/:id", (req, res) => {
     });
 });
 // To render category page
-app.get("/categories", function (req, res) {
+app.get("/categories", isAuthenticated, function (req, res) {
   blog
     .getCategories()
     .then(function (data) {
@@ -204,7 +230,7 @@ app.get("/categories", function (req, res) {
     });
 });
 // To render the post page
-app.get("/posts/add", function (req, res) {
+app.get("/posts/add", isAuthenticated, function (req, res) {
   blog.
     getCategories().then(function (data) {
       res.render("addPost", { categories: data });
@@ -213,7 +239,7 @@ app.get("/posts/add", function (req, res) {
     });
 });
 // To add post data to the data base
-app.post("/posts/add", upload.single("featureImage"), (req, res) => {
+app.post("/posts/add", isAuthenticated, upload.single("featureImage"), (req, res) => {
   let streamUpload = (req) => {
     return new Promise((resolve, reject) => {
       let stream = cloudinary.uploader.upload_stream((error, result) => {
@@ -246,12 +272,12 @@ app.post("/posts/add", upload.single("featureImage"), (req, res) => {
 app.use(express.urlencoded({ extended: true }));
 
 // Route to add new category(GET)
-app.get("/categories/add", function (req, res) {
+app.get("/categories/add", isAuthenticated, function (req, res) {
   res.render("addCategory");
 })
 
 // Route to add new category(POST)
-app.post("/categories/add", (req, res) => {
+app.post("/categories/add", isAuthenticated, (req, res) => {
   blog
     .addCategory({category:req.body})
     .then(() => {
@@ -263,10 +289,9 @@ app.post("/categories/add", (req, res) => {
 });
 
 // Route to delete Category by id
-app.get("/categories/delete/:id", (req, res) => {
-  console.log(req.body)
+app.get("/categories/delete", isAuthenticated, (req, res) => {
   blog
-    .deleteCategoryById(req.body)
+    .deleteCategoryById(req.query.id)
     .then(function (data) {
       blog
       .getCategories().then(function(data){
@@ -278,21 +303,82 @@ app.get("/categories/delete/:id", (req, res) => {
 })
 
 // Route to delete Post by id
-app.get("/post/delete/:id", function (req, res) {
+app.get("/posts/delete", isAuthenticated, function (req, res) {
   blog
-    .deletePostById(req.params.id)
-    .then(function (data) {
-      res.redirect("/categories")
-    }).catch(function (error) {
-      res.send(error)
-      // res.status(500).render(error);
+    .deletePostById(req.query.id)
+    .then(function () {
+      blog
+      .getAllPosts()
+      .then(function (data) {
+        if (data.length > 0) {
+          res.render("posts", { info: data });
+        } else {
+          res.render("posts", { message: "no results" });
+        }
+      })
+      .catch(function (err) {
+        res.render("posts", { message: "no results" });
+      });
     })
-})
+    .catch(function (error) {
+      res.status(500).render("500");
+    });
+});
 
 // Render add Category page
-app.get("/category/add", function (req, res) {
+app.get("/category/add", isAuthenticated, function (req, res) {
   res.render("addCategory")
 });
+
+// Render the login page
+app.get("/login", function(req, res){
+  res.render("login")
+});
+
+// Perform the login operation
+app.post("/login", function(req, res){
+  req.body.userAgent = req.get('User-Agent');
+  authData
+  .checkUser(req.body)
+  .then((user) => {
+    req.session.user = {email:user[0].email, userName:user[0].userName, loginHistory:user[0].loginHistory}
+    res.redirect('/posts')
+  }).catch(function(err){
+    res.render("login",  {errorMessage: err, userName: req.body.userName} )
+  });
+});
+
+
+
+
+// Render registre page
+app.get("/register", function(req, res){
+  res.render("register")
+})
+// Logout view
+app.get("/logout", function(req, res){
+  req.session.destroy(function(err) {
+    if(err) {
+      console.log(err);
+    } else {
+      res.redirect('/');
+    }
+  });
+});
+// Add the user in database
+app.post("/register", function(req, res){
+  authData.registerUser(req.body)
+  .then(function(){
+    res.render("register", {successMessage: "User created"})
+  }). catch(function(err){
+    res.render("register", {errorMessage: err, userName: req.body.userName} )
+  })
+})
+
+// Route to get the userHistory
+app.get("userHistory", function(req, res){
+  res.render("userHistory")
+})
 
 // Initialize the app
 app.use((req, res) => {
@@ -301,11 +387,12 @@ app.use((req, res) => {
 var PORT = process.env.PORT || 8080;
 blog
   .initialize()
+  .then(authData.initialize())
   .then((msg) => {
     app.listen(PORT, () => {
       console.log(`Express http server is listening  on  ${PORT}`);
     });
   })
   .catch((err) => {
-    console.log(err);
+    console.log("Unable to listen server: "+err);
   });

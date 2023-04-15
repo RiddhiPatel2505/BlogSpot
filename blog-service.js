@@ -90,21 +90,34 @@ getCategories = () => {
 
 // Create the new post
 addPost = (postData) => {
+  Category.findAll({
+    where: {
+      id: postData['category']
+    }
+  }).then((data) => {
+    console.log("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$")
+    console.log(">>>>>>>>>>>>>data:" + data.category)
+    console.log(">>>>>>>>>>>>>>>postData" + postData['category'])
+  }).catch(function(error){
+    console.log("####################################")
+    postData['category'] = "smit"
+  })
   postData.published = (postData.published) ? true : false;
   for (let prop in postData) {
     if (postData[prop] === "") {
       postData[prop] = null
     }
   }
-  postData['postData'] = new Date()
+  postData['postDate'] = new Date()
 
+  console.log("************************************8")
   return new Promise(function (resolve, reject) {
-      Post.create(postData).then(function () {
-        resolve()
-      }).catch(function (error) {
-        reject(error);
-      });
-    })
+    Post.create(postData).then(function () {
+      resolve()
+    }).catch(function (error) {
+      reject(error);
+    });
+  })
 };
 // Adding new category
 addCategory = (category) => {
@@ -129,9 +142,9 @@ deleteCategoryById = (id) => {
       where: {
         id: id
       }
-    }).then(function(data){
+    }).then(function (data) {
       resolve()
-    }).catch(function(error){
+    }).catch(function (error) {
       reject("Unable to delete category!")
     });
   });
@@ -139,18 +152,19 @@ deleteCategoryById = (id) => {
 
 // Delete post by id
 deletePostById = (id) => {
-  return new Promise(function(resolve, reject){
+  return new Promise(function (resolve, reject) {
     Post.destroy({
-      where:{
-        id : id
+      where: {
+        id: id
       }
-    }).then(function(post){
-      resolve()
-    }).catch(function (error){
-      reject("Unable to delete post!")
+    }).then(function (result) {
+      resolve();
+    }).catch(function (error) {
+      reject("Unable to delete post!");
     });
   });
 }
+
 // Retrive the post by category
 getPostsByCategory = (category) => {
   {
