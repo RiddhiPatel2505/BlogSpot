@@ -50,11 +50,9 @@ registerUser = (userData) => {
 
 checkUser = (userData) => {
     return new Promise(function (resolve, reject) {
-        console.log("^^^^^^^^^^^^^^^^^^^^^^^^")
         User.find({ userName: userData.userName})
             .then((users) => {
                 bcrypt.compare(userData.password, hash).then((result) => {
-                    console.log('%%%%%%%%%%%%%%%')
                     console.log(result)
                     if (users.length == 0) {
                         reject(`Unable to find user: ${userData.userName}`);

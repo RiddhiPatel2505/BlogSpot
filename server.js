@@ -39,12 +39,12 @@ app.use(session({
   secret: 'This is smit patel',
   resave: false,
   saveUninitialized: true,
-  cookie: { secure: true }
+  cookie: { secure: true, maxAge:1000*60*60 }
 }));
 
 // Middleware to check whether is suthenticated or not
 function isAuthenticated(req, res, next) {
-  if (req.session.user) {
+  if (req.session) {
     // user is authenticated, continue to next middleware or route handler
     return next();
   }
@@ -134,7 +134,15 @@ app.get("/blog",isAuthenticated,  async (req, res) => {
     viewData.categoriesMessage = "no results";
   }
 
-  res.render("blog", { data: viewData });
+  if(req.session != null){
+    data = { data: viewData, session:req.session }
+  }
+  else
+  {
+    data = {data:viewData}
+  }
+
+  res.render("blog", data);
 });
 // To get blog
 app.get("/blog/:id", async (req, res) => {
@@ -341,7 +349,7 @@ app.post("/login", function(req, res){
   authData
   .checkUser(req.body)
   .then((user) => {
-    req.session.user = {email:user[0].email, userName:user[0].userName, loginHistory:user[0].loginHistory}
+    req.session = {email:user[0].email, userName:user[0].userName, loginHistory:user[0].loginHistory}
     res.redirect('/posts')
   }).catch(function(err){
     res.render("login",  {errorMessage: err, userName: req.body.userName} )
